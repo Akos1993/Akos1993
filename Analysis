@@ -1,0 +1,154 @@
+import random
+!pip install faker
+from faker import Faker
+import csv
+
+# Initialize Faker
+fake = Faker()
+
+# Generate Users data
+def generate_users(num_users=100):
+    users = []
+    for user_id in range(1, num_users + 1):
+        name = fake.first_name()
+        age = random.randint(18, 65)
+        gender = random.choice(['Male', 'Female'])
+        users.append([user_id, name, age, gender])
+    return users
+
+# Generate Movies data
+def generate_movies(num_movies=100):
+    genres = ['Sci-Fi', 'Action', 'Drama', 'Romance', 'Thriller', 'Comedy', 'Animation', 'Crime', 'Musical']
+    movies = []
+    for movie_id in range(1, num_movies + 1):
+        title = fake.sentence(nb_words=3).strip('.')
+        genre = random.choice(genres)
+        release_year = random.randint(1980, 2025)
+        movies.append([movie_id, title, genre, release_year])
+    return movies
+
+# Generate Ratings data
+def generate_ratings(num_ratings=100, num_users=100, num_movies=100):
+    ratings = []
+    for rating_id in range(1, num_ratings + 1):
+        user_id = random.randint(1, num_users)
+        movie_id = random.randint(1, num_movies)
+        rating = random.randint(1, 5)
+        timestamp = fake.date_time_this_decade()
+        ratings.append([rating_id, user_id, movie_id, rating, timestamp])
+    return ratings
+
+# Write data to CSV files
+def write_to_csv(filename, data, headers):
+    with open(filename, mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(headers)
+        writer.writerows(data)
+
+# Generate and save Users data
+users = generate_users()
+write_to_csv('users.csv', users, ['UserID', 'Name', 'Age', 'Gender'])
+
+# Generate and save Movies data
+movies = generate_movies()
+write_to_csv('movies.csv', movies, ['MovieID', 'Title', 'Genre', 'ReleaseYear'])
+
+# Generate and save Ratings data
+ratings = generate_ratings()
+write_to_csv('ratings.csv', ratings, ['RatingID', 'UserID', 'MovieID', 'Rating', 'Timestamp'])
+
+print("Dummy data generated and saved to CSV files: users.csv, movies.csv, ratings.csv")
+
+!pip install pandas
+
+import pandas as pd
+
+def clean_data(file_path, drop_duplicates=True, fill_missing=None):
+    """
+    Cleans a dataset by removing duplicates and dealing with incomplete data.
+
+    Parameters:
+        file_path (str): Path to the CSV file to be cleaned.
+        drop_duplicates (bool): Whether to drop duplicate rows. Default is True.
+        fill_missing (dict): A dictionary specifying column names and values to fill missing data.
+                             Example: {'Age': 25, 'Rating': 3}
+                             If None, drops rows with missing data. Default is None.
+
+    Returns:
+        pd.DataFrame: A cleaned pandas DataFrame.
+    """
+    # Load the dataset
+    df = pd.read_csv(file_path)
+
+    # Remove duplicates
+    if drop_duplicates:
+        df = df.drop_duplicates()
+
+    # Handle missing data
+    if fill_missing:
+        df = df.fillna(fill_missing)  # Fill missing values with provided dictionary
+    else:
+        df = df.dropna()  # Drop rows with missing values
+
+    return df
+
+# Example usage for users.csv
+cleaned_users = clean_data(
+    file_path='users.csv',
+    drop_duplicates=True,
+    fill_missing={'Age': 25, 'Gender': 'Unknown'}  # Fill missing 'Age' with 25 and 'Gender' with 'Unknown'
+)
+
+# Example usage for movies.csv
+cleaned_movies = clean_data(
+    file_path='movies.csv',
+    drop_duplicates=True,
+    fill_missing={'Genre': 'Unknown', 'ReleaseYear': 2000}  # Fill missing 'Genre' and 'ReleaseYear'
+)
+
+# Example usage for ratings.csv
+cleaned_ratings = clean_data(
+    file_path='ratings.csv',
+    drop_duplicates=True,
+    fill_missing={'Rating': 3}  # Fill missing 'Rating' with 3
+)
+
+# Display cleaned data samples
+print("Cleaned Users Data:")
+print(cleaned_users.head())
+
+print("\nCleaned Movies Data:")
+print(cleaned_movies.head())
+
+print("\nCleaned Ratings Data:")
+print(cleaned_ratings.head())
+
+def find_highest_rated_movies(movies_df, ratings_df):
+    """
+    Finds the highest-rated movies based on average ratings.
+
+    Parameters:
+        movies_df (pd.DataFrame): DataFrame containing movie information with columns ['MovieID', 'Title'].
+        ratings_df (pd.DataFrame): DataFrame containing ratings with columns ['MovieID', 'Rating'].
+
+    Returns:
+        pd.DataFrame: DataFrame containing the highest-rated movies with their average ratings.
+    """
+    # Calculate the average rating for each movie
+    avg_ratings = ratings_df.groupby('MovieID')['Rating'].mean().reset_index()
+    avg_ratings.rename(columns={'Rating': 'AverageRating'}, inplace=True)
+
+    # Merge with the movies DataFrame to get movie titles
+    highest_rated = pd.merge(avg_ratings, movies_df, on='MovieID')
+
+    # Sort by AverageRating in descending order
+    highest_rated = highest_rated.sort_values(by='AverageRating', ascending=False)
+
+    return highest_rated
+
+# Process data to find the highest-rated movies
+highest_rated_movies = find_highest_rated_movies(movies_df, ratings_df)
+
+# Display the results
+print("Top Rated Movies:")
+print(highest_rated_movies.head(10))  # Display the top 10 highest-rated movies
